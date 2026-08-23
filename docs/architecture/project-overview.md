@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-AeroPulse is an enterprise-style Databricks Lakehouse platform designed for a fictional aerospace engine manufacturing and services organization.
+AeroPulse is an enterprise-style Databricks Lakehouse platform designed for a aerospace engine manufacturing and services organization.
 
 The platform simulates realistic data generated from aerospace business operations, including:
 
@@ -18,7 +18,7 @@ The platform simulates realistic data generated from aerospace business operatio
 
 The purpose of the project is to design and implement an end-to-end enterprise data platform using Databricks and modern Lakehouse architecture.
 
-The project will use synthetic data and will not use proprietary data from Rolls-Royce or any other aerospace organization.
+The project will use synthetic data and will not use proprietary data any other aerospace organization.
 
 ---
 
