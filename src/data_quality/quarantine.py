@@ -3,9 +3,9 @@ AeroPulse Data Quality Quarantine Utility
 
 Purpose
 -------
-Provides reusable functionality for writing records that
-fail data quality validation into the centralized
-quarantine Delta table.
+Provides reusable functionality for converting records that
+fail data quality validation into the standardized
+AeroPulse quarantine format.
 """
 
 from pyspark.sql import DataFrame
@@ -25,49 +25,50 @@ def prepare_quarantine_records(
     Convert invalid records into the standardized
     AeroPulse quarantine format.
 
-    Parameters
-    ----------
-    invalid_df : DataFrame
-        Records that failed a data quality rule.
-
-    rule_name : str
-        Name of the failed data quality rule.
-
-    failure_reason : str
-        Human-readable explanation of the failure.
-
-    pipeline_run_id : str
-        Identifier for the pipeline execution.
-
-    source_system : str
-        Name of the originating source system.
-
-    source_entity : str
-        Business entity represented by the records.
-
-    quarantine_table : str
-        Fully qualified quarantine table name.
-
-    Returns
-    -------
-    DataFrame
-        DataFrame formatted for the centralized
-        AeroPulse quarantine table.
+    The function creates a deterministic quarantine event ID
+    so the same rejection event can be identified during
+    pipeline reruns.
     """
 
     # Preserve source file path when available.
-    # This allows us to trace an invalid record
-    # back to the physical source delivery.
     if "_source_file_path" in invalid_df.columns:
         source_file_column = F.col("_source_file_path")
     else:
         source_file_column = F.lit(None).cast("string")
+
+    # Create a deterministic event identifier.
+    #
+    # We use the pipeline run, source information,
+    # rule name, and the complete record as the identity
+    # of the rejection event.
+    quarantine_event_id = F.sha2(
+        F.concat_ws(
+            "||",
+            F.lit(pipeline_run_id),
+            F.lit(source_system),
+            F.lit(source_entity),
+            F.lit(rule_name),
+            F.to_json(
+                F.struct(
+                    *[
+                        F.col(column)
+                        for column in invalid_df.columns
+                    ]
+                )
+            ),
+        ),
+        256,
+    )
 
     return (
         invalid_df
         .withColumn(
             "quarantine_id",
             F.expr("uuid()")
+        )
+        .withColumn(
+            "quarantine_event_id",
+            quarantine_event_id
         )
         .withColumn(
             "pipeline_run_id",
@@ -110,6 +111,7 @@ def prepare_quarantine_records(
         )
         .select(
             "quarantine_id",
+            "quarantine_event_id",
             "pipeline_run_id",
             "source_system",
             "source_entity",
