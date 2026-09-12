@@ -10,7 +10,7 @@ AeroPulse quarantine format.
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-
+from delta.tables import DeltaTable
 
 def prepare_quarantine_records(
     invalid_df: DataFrame,
@@ -121,4 +121,34 @@ def prepare_quarantine_records(
             "record_json",
             "quarantine_timestamp",
         )
+    )
+
+
+def write_quarantine_records(
+    quarantine_df: DataFrame,
+    quarantine_table: str,
+) -> None:
+    """
+    Write quarantine records into the centralized Delta table
+    using an idempotent MERGE.
+
+    A quarantine event is identified by quarantine_event_id.
+
+    If the same quarantine event already exists, the record
+    is not inserted again.
+    """
+
+    target_table = DeltaTable.forName(
+        quarantine_df.sparkSession,
+        quarantine_table,
+    )
+
+    (
+        target_table.alias("target")
+        .merge(
+            quarantine_df.alias("source"),
+            "target.quarantine_event_id = source.quarantine_event_id",
+        )
+        .whenNotMatchedInsertAll()
+        .execute()
     )
