@@ -93,3 +93,26 @@ def duplicate_check(
         )
 
     return check
+
+def get_invalid_records(
+    df: DataFrame,
+    check_function: Callable[[DataFrame], DataFrame],
+) -> DataFrame:
+    """
+    Return the records that fail a data quality check.
+
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame being validated.
+
+    check_function : Callable
+        Function that returns invalid records.
+
+    Returns
+    -------
+    DataFrame
+        Records that failed the specified rule.
+    """
+
+    return check_function(df)
