@@ -152,3 +152,67 @@ def write_quarantine_records(
         .whenNotMatchedInsertAll()
         .execute()
     )
+
+
+def validate_and_quarantine(
+    df: DataFrame,
+    rule,
+    pipeline_run_id: str,
+    source_system: str,
+    source_entity: str,
+    quarantine_table: str,
+) -> dict:
+    """
+    Run a Data Quality rule and quarantine any invalid records.
+
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame being validated.
+
+    rule : DataQualityRule
+        Data Quality rule to execute.
+
+    pipeline_run_id : str
+        Unique identifier for the pipeline execution.
+
+    source_system : str
+        Name of the originating source system.
+
+    source_entity : str
+        Name of the source entity.
+
+    quarantine_table : str
+        Fully qualified quarantine Delta table.
+
+    Returns
+    -------
+    dict
+        Summary of the validation and quarantine operation.
+    """
+
+    invalid_df = rule.check_function(df)
+
+    invalid_count = invalid_df.count()
+
+    if invalid_count > 0:
+        quarantine_df = prepare_quarantine_records(
+            invalid_df=invalid_df,
+            rule_name=rule.rule_name,
+            failure_reason=rule.description,
+            pipeline_run_id=pipeline_run_id,
+            source_system=source_system,
+            source_entity=source_entity,
+            quarantine_table=quarantine_table,
+        )
+
+        write_quarantine_records(
+            quarantine_df=quarantine_df,
+            quarantine_table=quarantine_table,
+        )
+
+    return {
+        "rule_name": rule.rule_name,
+        "invalid_records": invalid_count,
+        "quarantined": invalid_count > 0,
+    }
