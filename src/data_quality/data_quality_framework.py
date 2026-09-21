@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from typing import Callable, List
 
 from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 
 @dataclass
 class DataQualityRule:
@@ -91,6 +92,17 @@ def duplicate_check(
             on=column_name,
             how="inner"
         )
+
+    return check
+
+def non_negative_check(column_name: str):
+    """
+    Return a data quality check function that identifies
+    records where the specified numeric column is negative.
+    """
+
+    def check(df: DataFrame):
+        return df.filter(F.col(column_name) < 0)
 
     return check
 
